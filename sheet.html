@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dynamic Midterm Grade Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f8fafc;
+      margin: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #1e3a8a;
+      margin-bottom: 10px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 13px;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+      background-color: white;
+    }
+
+    th, td {
+      border: 1px solid #999;
+      text-align: center;
+      padding: 4px;
+    }
+
+    th {
+      font-weight: bold;
+    }
+
+    .yellow { background-color: #facc15; }
+    .highlight { background-color: #fef08a; }
+    .orange { background-color: #f97316; color: white; }
+
+    input {
+      width: 65px;
+      text-align: center;
+      border: none;
+      background: #f1f5f9;
+      border-radius: 4px;
+      transition: 0.2s;
+    }
+
+    input:focus {
+      outline: 2px solid #3b82f6;
+      background: #fff;
+    }
+
+    button {
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      margin: 8px 4px;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background-color: #2563eb;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Midterm Grade Dashboard</h1>
+
+  <div style="text-align:center; margin-bottom:10px;">
+    <button id="addRowBtn">+ Add Student</button>
+    <button id="addLecBtn">+ Add Lecture Column</button>
+    <button id="addLabBtn">+ Add Laboratory Column</button>
+  </div>
+
+  <table id="gradeTable">
+    <thead>
+      <tr class="yellow" id="header1">
+        <th rowspan="2">No.</th>
+        <th rowspan="2">ID Number</th>
+        <th rowspan="2">Name</th>
+        <th colspan="5" id="lecHeader">Lecture 67%</th>
+        <th colspan="5" id="labHeader">Laboratory 33%</th>
+        <th rowspan="2" class="orange">Final %</th>
+        <th rowspan="2" class="green">GWA</th>
+      </tr>
+      <tr class="highlight" id="header2">
+        <th class="lecTitle">Quiz 1</th>
+        <th class="lecTitle">Quiz 2</th>
+        <th class="lecTitle">Midterm</th>
+        <th class="lecTotal">Total Lec</th>
+        <th class="lecPercent">Lec %</th>
+
+        <th class="labTitle">Lab 1</th>
+        <th class="labTitle">Lab 2</th>
+        <th class="labTitle">Lab Exam</th>
+        <th class="labTotal">Total Lab</th>
+        <th class="labPercent">Lab %</th>
+      </tr>
+    </thead>
+
+    <tbody id="tbody">
+      <tr>
+        <td>1</td>
+        <td><input type="text" value="2025001"></td>
+        <td><input type="text" value="Juan Dela Cruz"></td>
+        <td><input type="text" class="lec" placeholder="45/50" /></td>
+        <td><input type="text" class="lec" placeholder="40/50" /></td>
+        <td><input type="text" class="lec" placeholder="90/100" /></td>
+        <td><input type="text" class="lecTotal" readonly /></td>
+        <td><input type="text" class="lecPercent" readonly /></td>
+        <td><input type="text" class="lab" placeholder="45/50" /></td>
+        <td><input type="text" class="lab" placeholder="40/50" /></td>
+        <td><input type="text" class="lab" placeholder="85/100" /></td>
+        <td><input type="text" class="labTotal" readonly /></td>
+        <td><input type="text" class="labPercent" readonly /></td>
+        <td><input type="text" class="finalPercent" readonly /></td>
+        <td><input type="text" class="gwaCell" readonly /></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <script>
+    const tbody = document.getElementById("tbody");
+    const addRowBtn = document.getElementById("addRowBtn");
+    const addLecBtn = document.getElementById("addLecBtn");
+    const addLabBtn = document.getElementById("addLabBtn");
+
+    function parseScore(str) {
+      if (!str.includes("/")) return parseFloat(str) || 0;
+      const [num, den] = str.split("/").map(Number);
+      return den ? (num / den) * 100 : 0;
+    }
+
+    function getGWA(finalPercent) {
+      if (finalPercent >= 96) return 1.00;
+      if (finalPercent >= 91) return 1.25;
+      if (finalPercent >= 86) return 1.50;
+      if (finalPercent >= 81) return 1.75;
+      if (finalPercent >= 76) return 2.00;
+      if (finalPercent >= 71) return 2.25;
+      if (finalPercent >= 66) return 2.50;
+      if (finalPercent >= 61) return 2.75;
+      if (finalPercent >= 51) return 3.00;
+      return 5.00;
+    }
+
+    function computeGrades() {
+      const rows = tbody.querySelectorAll("tr");
+      rows.forEach(row => {
+        const lecInputs = row.querySelectorAll(".lec");
+        const labInputs = row.querySelectorAll(".lab");
+
+        let lecPercent = 0, labPercent = 0;
+
+        lecInputs.forEach(input => lecPercent += parseScore(input.value));
+        labInputs.forEach(input => labPercent += parseScore(input.value));
+
+        const lecAvg = lecInputs.length ? lecPercent / lecInputs.length : 0;
+        const labAvg = labInputs.length ? labPercent / labInputs.length : 0;
+
+        const finalPercent = (lecAvg * 0.67) + (labAvg * 0.33);
+        const gwa = getGWA(finalPercent);
+
+        row.querySelector(".lecTotal").value = lecPercent.toFixed(2);
+        row.querySelector(".lecPercent").value = lecAvg.toFixed(2) + "%";
+        row.querySelector(".labTotal").value = labPercent.toFixed(2);
+        row.querySelector(".labPercent").value = labAvg.toFixed(2) + "%";
+        row.querySelector(".finalPercent").value = finalPercent.toFixed(2) + "%";
+        row.querySelector(".gwaCell").value = gwa.toFixed(2);
+      });
+    }
+
+    function addRow() {
+      const newRow = document.createElement("tr");
+      const rowCount = tbody.rows.length + 1;
+      const lecCols = document.querySelectorAll(".lecTitle").length - 2;
+      const labCols = document.querySelectorAll(".labTitle").length - 2;
+
+      newRow.innerHTML = `
+        <td>${rowCount}</td>
+        <td><input type="text" placeholder="ID"></td>
+        <td><input type="text" placeholder="Name"></td>
+        ${Array(lecCols).fill('<td><input type="text" class="lec" placeholder="45/50" /></td>').join('')}
+        <td><input type="text" class="lecTotal" readonly /></td>
+        <td><input type="text" class="lecPercent" readonly /></td>
+        ${Array(labCols).fill('<td><input type="text" class="lab" placeholder="40/50" /></td>').join('')}
+        <td><input type="text" class="labTotal" readonly /></td>
+        <td><input type="text" class="labPercent" readonly /></td>
+        <td><input type="text" class="finalPercent" readonly /></td>
+        <td><input type="text" class="gwaCell" readonly /></td>
+      `;
+      tbody.appendChild(newRow);
+    }
+
+    function addColumn(type) {
+      const header2 = document.getElementById("header2");
+      const rows = tbody.querySelectorAll("tr");
+      const newTh = document.createElement("th");
+      newTh.textContent = `${type === "lec" ? "Quiz" : "Lab"} ${Date.now().toString().slice(-2)}`;
+      newTh.classList.add(type === "lec" ? "lecTitle" : "labTitle");
+
+      if (type === "lec") {
+        header2.insertBefore(newTh, document.querySelector(".lecTotal").closest("th"));
+        rows.forEach(row => {
+          const td = document.createElement("td");
+          td.innerHTML = `<input type="text" class="${type}" placeholder="45/50" />`;
+          row.insertBefore(td, row.querySelector(".lecTotal").closest("td"));
+        });
+      } else {
+        header2.insertBefore(newTh, document.querySelector(".labTotal").closest("th"));
+        rows.forEach(row => {
+          const td = document.createElement("td");
+          td.innerHTML = `<input type="text" class="${type}" placeholder="45/50" />`;
+          row.insertBefore(td, row.querySelector(".labTotal").closest("td"));
+        });
+      }
+    }
+
+    addRowBtn.addEventListener("click", addRow);
+    addLecBtn.addEventListener("click", () => addColumn("lec"));
+    addLabBtn.addEventListener("click", () => addColumn("lab"));
+    document.getElementById("gradeTable").addEventListener("input", computeGrades);
+  </script>
+</body>
+</html>

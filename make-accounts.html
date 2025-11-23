@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - Manage Accounts</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6fc;
+      margin: 0;
+    }
+    .container {
+      margin-left: 250px;
+      padding: 20px;
+    }
+    .sidebar {
+      position: fixed;
+      width: 230px;
+      height: 100%;
+      background-color: #1a1875;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+    .sidebar h2 {
+      text-align: center;
+      color: #ffca00;
+      margin-bottom: 30px;
+    }
+    .sidebar a {
+      color: white;
+      text-decoration: none;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 8px;
+      transition: 0.2s;
+    }
+    .sidebar a:hover, .sidebar a.active {
+      background-color: #2927a3;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    h1 {
+      color: #1a1875;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #ffca00;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #f0b700;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background: #ffca00;
+    }
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    .action-btn {
+      padding: 6px 10px;
+      margin: 2px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .edit-btn {
+      background-color: #4caf50;
+      color: white;
+    }
+    .delete-btn {
+      background-color: #e74c3c;
+      color: white;
+    }
+    .save-btn {
+      background-color: #2196f3;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>ADMIN PANEL</h2>
+    <a href="admin-dashboard.html">🏠 Dashboard</a>
+    <a href="make-accounts.html" class="active">👤 Make New Accounts</a>
+    <a href="assign-year.html">📘 Assign Year / Section / Course</a>
+    <a href="assign-faculty.html">📚 Assign Faculty / Subjects / Course</a>
+    <a href="login.html">🚪 Logout</a>
+  </div>
+
+  <div class="container">
+    <h1>Welcome, Admin!</h1>
+    <div class="card">
+      <h2>Manage Accounts</h2>
+
+      <form id="accountForm">
+        <select id="role">
+          <option value="student">Student</option>
+          <option value="faculty">Faculty</option>
+          <option value="admin">Admin</option>
+        </select>
+        <input type="text" id="name" placeholder="Full Name" required />
+        <input type="email" id="email" placeholder="Email" required />
+        <input type="text" id="password" placeholder="Password" required />
+        <button type="submit">Add Account</button>
+      </form>
+
+      <h3>Registered Accounts</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Role</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Password</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="accountTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // ✅ Create default Admin account if none exists
+    if (!localStorage.getItem("users")) {
+      localStorage.setItem("users", JSON.stringify([
+        { name: "System Admin", email: "admin@gradelytics.com", password: "admin123", role: "admin" }
+      ]));
+    }
+
+    const form = document.getElementById("accountForm");
+    const tableBody = document.getElementById("accountTableBody");
+
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      saveAccount();
+    });
+
+    function saveAccount() {
+      const role = document.getElementById("role").value.toLowerCase();
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim().toLowerCase();
+      const password = document.getElementById("password").value.trim();
+
+      let users = JSON.parse(localStorage.getItem("users")) || [];
+
+      if (users.some(u => u.email === email)) {
+        alert("Email already exists!");
+        return;
+      }
+
+      users.push({ role, name, email, password });
+      localStorage.setItem("users", JSON.stringify(users));
+      form.reset();
+      displayAccounts();
+      alert("Account added successfully!");
+    }
+
+    function displayAccounts() {
+      const users = JSON.parse(localStorage.getItem("users")) || [];
+      tableBody.innerHTML = "";
+      users.forEach((u, i) => {
+        tableBody.innerHTML += `
+          <tr>
+            <td>${i + 1}</td>
+            <td contenteditable="true" onblur="updateUser(${i}, 'role', this.textContent)">${u.role}</td>
+            <td contenteditable="true" onblur="updateUser(${i}, 'name', this.textContent)">${u.name}</td>
+            <td contenteditable="true" onblur="updateUser(${i}, 'email', this.textContent)">${u.email}</td>
+            <td contenteditable="true" onblur="updateUser(${i}, 'password', this.textContent)">${u.password}</td>
+            <td>
+              <button class="delete-btn action-btn" onclick="deleteUser(${i})">Delete</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function updateUser(index, field, value) {
+      let users = JSON.parse(localStorage.getItem("users")) || [];
+      users[index][field] = value.trim();
+      localStorage.setItem("users", JSON.stringify(users));
+      displayAccounts();
+    }
+
+    function deleteUser(index) {
+      let users = JSON.parse(localStorage.getItem("users")) || [];
+      if (confirm("Are you sure you want to delete this account?")) {
+        users.splice(index, 1);
+        localStorage.setItem("users", JSON.stringify(users));
+        displayAccounts();
+      }
+    }
+
+    window.onload = displayAccounts;
+  </script>
+</body>
+</html>

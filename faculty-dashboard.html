@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Gradelytics — Faculty Dashboard</title>
+<style>
+  *{box-sizing:border-box;font-family:Poppins,system-ui,Arial}
+  body{margin:0;display:flex;height:100vh;background:#f4f6fb}
+  .sidebar{width:240px;background:#1e3a8a;color:#fff;padding:18px;display:flex;flex-direction:column}
+  .sidebar h2{color:#facc15;text-align:center;margin:0 0 18px}
+  .sidebar button{background:none;border:none;color:#fff;padding:10px;text-align:left;border-radius:8px;margin-bottom:8px;cursor:pointer}
+  .sidebar button.active,.sidebar button:hover{background:#facc15;color:#1e3a8a;font-weight:700}
+  .sidebar .logout{margin-top:auto;background:#facc15;color:#1e3a8a;padding:10px;border-radius:8px;border:none;cursor:pointer}
+  .main{flex:1;padding:16px;overflow:auto}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  header h1{margin:0;color:#1e3a8a}
+  .notif{position:relative;cursor:pointer;margin-left:12px}
+  .notif .badge{position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border-radius:12px;padding:2px 6px;font-size:12px}
+  .panel{background:#fff;padding:12px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+  .controls{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  select,input{padding:8px;border-radius:6px;border:1px solid #ccc}
+  button.btn{padding:8px 12px;border-radius:6px;border:none;cursor:pointer}
+  button.save{background:#16a34a;color:#fff}
+  button.add{background:#3b82f6;color:#fff}
+  button.danger{background:#ef4444;color:#fff}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{border:1px solid #ddd;padding:6px;text-align:center;font-size:13px}
+  th{background:#facc15;color:#1e3a8a}
+  .left-col{width:260px}
+  .two-col{display:flex;gap:12px}
+  .subject-list{width:260px}
+  .subject-list button{width:100%;margin-bottom:6px;padding:8px;background:#1e3a8a;color:#fff;border:none;border-radius:6px;cursor:pointer}
+  .subject-list button:hover{background:#facc15;color:#1e3a8a}
+  .small{font-size:12px;color:#666}
+  .search{margin-left:auto}
+  .muted{color:#666;font-size:13px}
+  /* small responsive */
+  @media (max-width:900px){ .two-col{flex-direction:column} .subject-list{width:100%}}
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>FACULTY PANEL</h2>
+    <button id="nav-dashboard" class="active">Dashboard</button>
+    <button id="nav-grading">Grading Sheet</button>
+    <button id="nav-students">View Students</button>
+    <button id="nav-lacking">Lacking</button>
+    <button id="nav-tasks">Performance Task</button>
+    <button id="nav-complaints">Complaints</button>
+    <button class="logout" id="btnLogout">Logout</button>
+  </div>
+
+  <div class="main">
+    <header>
+      <div style="display:flex;align-items:center;gap:12px">
+        <h1 id="title">Welcome, Faculty</h1>
+        <div class="muted" id="facultyRole"></div>
+      </div>
+      <div style="display:flex;align-items:center">
+        <div class="notif" id="notifBell" title="Notifications">🔔<span class="badge" id="notifCount" style="display:none">0</span></div>
+      </div>
+    </header>
+
+    <!-- DASHBOARD -->
+    <div id="section-dashboard" class="panel">
+      <h2>Dashboard</h2>
+      <p class="muted">Quick overview</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px">
+        <div class="panel" style="min-width:180px"><b id="stat-students">0</b><div class="small">Assigned Students</div></div>
+        <div class="panel" style="min-width:180px"><b id="stat-sheets">0</b><div class="small">Grade Sheets</div></div>
+        <div class="panel" style="min-width:180px"><b id="stat-complaints">0</b><div class="small">New Complaints</div></div>
+      </div>
+    </div>
+
+    <!-- GRADING -->
+    <div id="section-grading" class="panel" style="display:none">
+      <div class="controls">
+        <label>Subject
+          <select id="subjectSelect"><option value="">-- Choose subject --</option></select>
+        </label>
+        <label>Course
+          <select id="courseSelect"><option value="">-- All --</option><option>BSIT</option><option>BSESM</option><option>BSTCM</option><option>BSMET</option><option>BSNAME</option></select>
+        </label>
+        <label>Year
+          <select id="yearSelect"><option value="">-- All --</option><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option></select>
+        </label>
+        <label>Section
+          <select id="sectionSelect"><option value="">-- All --</option></select>
+        </label>
+        <input id="searchInput" placeholder="Search student..." class="search"/>
+        <button class="btn add" id="loadSheet">Load / Create Sheet</button>
+        <button class="btn save" id="saveSheet">Save Sheet</button>
+        <button class="btn add" id="addStudentBtn">+ Add Student</button>
+      </div>
+
+      <div id="sheetMeta" class="muted">Select subject/course/year/section and click Load / Create Sheet</div>
+
+      <div id="sheetArea" style="margin-top:10px"></div>
+    </div>
+
+    <!-- STUDENTS -->
+    <div id="section-students" class="panel" style="display:none">
+      <h2>Assigned Students</h2>
+      <input id="studentSearch" placeholder="Search name or ID" style="margin-bottom:8px;padding:8px;border-radius:6px;border:1px solid #ccc;width:60%"/>
+      <div id="studentsWrap"></div>
+    </div>
+
+    <!-- LACKING -->
+    <div id="section-lacking" class="panel" style="display:none">
+      <h2>Lacking — assign to student</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="lackingStudent"></select>
+        <input id="lackingItem" placeholder="Missing item e.g. Quiz 1"/>
+        <button class="btn add" id="addLackingBtn">Add Lacking</button>
+      </div>
+      <div id="lackingList" style="margin-top:12px"></div>
+    </div>
+
+    <!-- TASKS -->
+    <div id="section-tasks" class="panel" style="display:none">
+      <h2>Performance Tasks — notify section</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="taskSection"></select>
+        <input id="taskDesc" placeholder="Task description"/>
+        <input id="taskScore" placeholder="Score (optional)"/>
+        <button class="btn add" id="addTaskBtn">Assign Task</button>
+      </div>
+      <div id="taskList" style="margin-top:12px"></div>
+    </div>
+
+    <!-- COMPLAINTS -->
+    <div id="section-complaints" class="panel" style="display:none">
+      <h2>Student Complaints</h2>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <select id="filterCourse"><option value="">Course</option><option>BSIT</option><option>BSESM</option><option>BSTCM</option></select>
+        <select id="filterSection"><option value="">Section</option></select>
+        <select id="filterSubject"><option value="">Subject</option></select>
+        <button class="btn" id="filterComplaints">Filter</button>
+      </div>
+      <table id="complaintsTable"><thead><tr><th>Student</th><th>Course</th><th>Section</th><th>Subject</th><th>Message</th><th>Reply</th><th>Date</th><th>Action</th></tr></thead><tbody></tbody></table>
+    </div>
+
+  </div>
+
+<script>
+/* ---------- Storage keys ---------- */
+const USERS_KEY = 'users';
+const FACULTY_GRADES_KEY = 'facultyGrades';
+const STUDENT_GRADES_KEY = 'studentGrades';
+const COMPLAINTS_KEY = 'complaints';
+const LACKING_KEY = 'lackingTasks';
+const TASKS_KEY = 'performanceTasks';
+const ACTIVE_KEY = 'activeUser';
+
+/* ---------- Load storage ---------- */
+let users = JSON.parse(localStorage.getItem(USERS_KEY)) || [];
+let facultyGrades = JSON.parse(localStorage.getItem(FACULTY_GRADES_KEY)) || [];
+let studentGrades = JSON.parse(localStorage.getItem(STUDENT_GRADES_KEY)) || {};
+let complaints = JSON.parse(localStorage.getItem(COMPLAINTS_KEY)) || [];
+let lacking = JSON.parse(localStorage.getItem(LACKING_KEY)) || [];
+let tasks = JSON.parse(localStorage.getItem(TASKS_KEY)) || [];
+const activeUser = JSON.parse(localStorage.getItem(ACTIVE_KEY));
+
+if(!activeUser || activeUser.role !== 'faculty'){
+  alert('Please login as faculty (activeUser in localStorage).');
+  window.location.href = 'login.html';
+}
+
+/* ---------- UI refs ---------- */
+const title = document.getElementById('title');
+const notifCountEl = document.getElementById('notifCount');
+const notifBell = document.getElementById('notifBell');
+title.textContent = `Welcome, ${activeUser.fname || ''} ${activeUser.lname || ''}`;
+document.getElementById('facultyRole').textContent = `${activeUser.email || ''}`;
+
+/* ---------- Navigation ---------- */
+const nav = {
+  dashboard: document.getElementById('nav-dashboard'),
+  grading: document.getElementById('nav-grading'),
+  students: document.getElementById('nav-students'),
+  lacking: document.getElementById('nav-lacking'),
+  tasks: document.getElementById('nav-tasks'),
+  complaints: document.getElementById('nav-complaints')
+};
+const sections = {
+  dashboard: document.getElementById('section-dashboard'),
+  grading: document.getElementById('section-grading'),
+  students: document.getElementById('section-students'),
+  lacking: document.getElementById('section-lacking'),
+  tasks: document.getElementById('section-tasks'),
+  complaints: document.getElementById('section-complaints')
+};
+Object.keys(nav).forEach(k => nav[k].addEventListener('click', ()=>showSection(k)));
+document.getElementById('btnLogout').addEventListener('click', ()=>{ localStorage.removeItem(ACTIVE_KEY); window.location.href='login.html'; });
+
+function showSection(key){
+  Object.values(sections).forEach(s => s.style.display='none');
+  sections[key].style.display = 'block';
+  Object.values(nav).forEach(b => b.classList.remove('active'));
+  nav[key].classList.add('active');
+  if(key==='students') renderStudents();
+  if(key==='lacking') renderLacking();
+  if(key==='tasks') renderTasks();
+  if(key==='complaints') renderComplaints();
+  if(key==='grading') populateSheetControls();
+}
+
+/* ---------- Notification (bell) ---------- */
+function updateNotifications(){
+  // new complaints for this faculty (not replied)
+  const myComplaints = complaints.filter(c => c.to === (activeUser.email || `${activeUser.fname} ${activeUser.lname}`) && !c.reply);
+  // new tasks/lacking affecting your subjects? For simplicity count complaints + grade sheets updated (unread flag)
+  const unreadGrades = facultyGrades.filter(g => g.facultyEmail === activeUser.email && g.unread).length;
+  const count = myComplaints.length + unreadGrades;
+  if(count>0){ notifCountEl.style.display='inline-block'; notifCountEl.textContent = count; } else notifCountEl.style.display='none';
+}
+notifBell.addEventListener('click', ()=>{ alert('Open Complaints / Dashboard to view updates.'); });
+
+/* ---------- Populate subject/course/section controls ---------- */
+function populateSheetControls(){
+  // subjectSelect should show assignedSubjects of this faculty (users record)
+  const subjectSelect = document.getElementById('subjectSelect');
+  subjectSelect.innerHTML = '<option value="">-- Choose subject --</option>';
+  const selfUser = users.find(u => u.email === activeUser.email) || activeUser;
+  const subs = (selfUser.assignedSubjects || []);
+  subs.forEach(s => {
+    const v = JSON.stringify({subject:s.subject,course:s.course,year:s.year,section:s.section||''});
+    const opt = document.createElement('option'); opt.value = v;
+    opt.textContent = `${s.subject} (${s.course} / ${s.year}${s.section?(' / '+s.section):''})`;
+    subjectSelect.appendChild(opt);
+  });
+  // populate section select from users (unique)
+  const secSel = document.getElementById('sectionSelect');
+  secSel.innerHTML = '<option value="">-- All --</option>';
+  const sectionsAll = Array.from(new Set(users.filter(u=>u.role==='student' && u.course).map(s=>s.section).filter(Boolean)));
+  sectionsAll.forEach(sec => { const o=document.createElement('option'); o.value=sec; o.textContent=sec; secSel.appendChild(o); });
+}
+
+/* ---------- Utility: parse score "45/50" or numeric => percent ---------- */
+function parseScore(str){
+  if(!str) return 0;
+  if(typeof str === 'number') return Number(str);
+  const s = str.toString().trim();
+  if(s.includes('/')){ const [num,den]=s.split('/').map(x=>Number(x)); if(!den||isNaN(num)) return 0; return (num/den)*100; }
+  const n = Number(s);
+  if(isNaN(n)) return 0;
+  // assume raw percent
+  if(n>0 && n<=1) return n*100;
+  if(n>100) return 100;
+  return n;
+}
+
+/* ---------- Build grade sheet table UI ---------- */
+let currentSheet = null; // in-memory reference
+
+function buildSheetUI(sheet){
+  const area = document.getElementById('sheetArea');
+  area.innerHTML = '';
+  if(!sheet){ area.innerHTML = '<div class="muted">No sheet loaded</div>'; return; }
+
+  // header controls for editing header titles / passing threshold
+  const meta = document.createElement('div');
+  meta.style.display='flex'; meta.style.justifyContent='space-between'; meta.style.alignItems='center';
+  meta.innerHTML = `<div class="small">Editing: <b>${sheet.subject}</b> — ${sheet.course} / ${sheet.year} ${sheet.section?('/ '+sheet.section):''}</div>
+    <div class="small">Passing %: <input id="passingPct" style="width:60px;padding:6px;border-radius:6px" value="${sheet.passingPct||60}"/> <button id="setPassing" class="btn">Set</button></div>`;
+  area.appendChild(meta);
+  document.getElementById('setPassing').addEventListener('click', ()=>{ sheet.passingPct = Number(document.getElementById('passingPct').value||60); saveSheet(sheet); alert('Passing % saved'); });
+
+  // create table using provided column layout (we'll allow adding/removing lec/lab columns)
+  const tbl = document.createElement('table');
+  tbl.innerHTML = `
+    <thead>
+      <tr class="yellow">
+        <th rowspan="2">No.</th><th rowspan="2">ID</th><th rowspan="2">Name</th>
+        <th colspan="${sheet.lecCols.length}">Lecture</th>
+        <th colspan="${sheet.labCols.length}">Laboratory</th>
+        <th rowspan="2">Final %</th><th rowspan="2">GWA</th><th rowspan="2">Actions</th>
+      </tr>
+      <tr class="highlight" id="header2">
+        ${sheet.lecCols.map((c,i)=>`<th contenteditable="true" data-type="lec" data-idx="${i}">${c.title || 'Lec'+(i+1)}</th>`).join('')}
+        ${sheet.labCols.map((c,i)=>`<th contenteditable="true" data-type="lab" data-idx="${i}">${c.title || 'Lab'+(i+1)}</th>`).join('')}
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+  const tbody = tbl.querySelector('tbody');
+  // fill rows alphabetical order
+  sheet.rows.sort((a,b)=> (a.studentName||'').localeCompare(b.studentName||''));
+  sheet.rows.forEach((r, idx) => {
+    const lecInputs = sheet.lecCols.map((_,i)=>`<td><input class="inp lec" data-idx="${i}" value="${r.lec && r.lec[i] !== undefined ? r.lec[i] : ''}" /></td>`).join('');
+    const labInputs = sheet.labCols.map((_,i)=>`<td><input class="inp lab" data-idx="${i}" value="${r.lab && r.lab[i] !== undefined ? r.lab[i] : ''}" /></td>`).join('');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${idx+1}</td><td class="sid">${r.studentId}</td><td class="sname">${r.studentName}</td>
+      ${lecInputs}<td class="finalPct">-</td><td class="gwa">-</td>
+      <td><button class="btn saveRow">Save Row</button><button class="btn danger removeRow">Remove</button></td>`;
+    // insert lab inputs before final? need to place properly: simpler reconstruct to match header counts
+    // We'll reconstruct row cells properly:
+    // Remove current and rebuild properly:
+    tbody.appendChild(tr);
+  });
+
+  area.appendChild(tbl);
+
+  // after building, we must adjust each row to include lec and lab inputs at correct positions:
+  // For simplicity below, rebuild tbody properly:
+  const tb = tbl.querySelector('tbody');
+  tb.innerHTML = '';
+  sheet.rows.forEach((r, idx)=>{
+    const tr = document.createElement('tr');
+    let html = `<td>${idx+1}</td><td class="sid">${r.studentId}</td><td class="sname">${r.studentName}</td>`;
+    sheet.lecCols.forEach((col,i)=> html += `<td><input class="lec inp" data-idx="${i}" value="${r.lec && r.lec[i] !== undefined ? r.lec[i] : ''}"></td>`);
+    sheet.labCols.forEach((col,i)=> html += `<td><input class="lab inp" data-idx="${i}" value="${r.lab && r.lab[i] !== undefined ? r.lab[i] : ''}"></td>`);
+    html += `<td class="finalPct">-</td><td class="gwa">-</td><td>
+      <button class="btn saveRow">Save Row</button>
+      <button class="btn danger removeRow">Remove</button>
+    </td>`;
+    tr.innerHTML = html;
+    tb.appendChild(tr);
+  });
+
+  // attach handlers: on input compute row
+  tbl.querySelectorAll('input.inp').forEach(inp => inp.addEventListener('input', ()=> computeTable(tbl, sheet)));
+  // row save/remove
+  tbl.querySelectorAll('.saveRow').forEach((btn,i)=> btn.addEventListener('click', ()=> {
+    const tr = btn.closest('tr');
+    persistRowToSheet(tr, sheet, i);
+    saveSheet(sheet);
+    markStudentGradesFromSheet(sheet);
+    alert('Row saved');
+  }));
+  tbl.querySelectorAll('.removeRow').forEach((btn,i)=> btn.addEventListener('click', ()=> {
+    if(!confirm('Remove student from this sheet?')) return;
+    sheet.rows.splice(i,1); saveSheet(sheet); buildSheetUI(sheet); markStudentGradesFromSheet(sheet);
+  }));
+
+  // compute initially
+  computeTable(tbl, sheet);
+
+  // add controls to add lecture/lab columns
+  const addControls = document.createElement('div');
+  addControls.style.marginTop='8px';
+  addControls.innerHTML = `<button class="btn add" id="addLecCol">+ Lec Col</button> <button class="btn add" id="addLabCol">+ Lab Col</button>`;
+  area.appendChild(addControls);
+  document.getElementById('addLecCol').addEventListener('click', ()=> {
+    sheet.lecCols.push({title:'Lec'+(sheet.lecCols.length+1),max:100}); saveSheet(sheet); buildSheetUI(sheet);
+  });
+  document.getElementById('addLabCol').addEventListener('click', ()=> {
+    sheet.labCols.push({title:'Lab'+(sheet.labCols.length+1),max:100}); saveSheet(sheet); buildSheetUI(sheet);
+  });
+}
+
+/* ---------- compute table rows ---------- */
+function computeTable(tbl, sheet){
+  const trs = Array.from(tbl.querySelectorAll('tbody tr'));
+  trs.forEach((tr, idx) => {
+    // collect lec inputs
+    let lecSumPct=0, labSumPct=0;
+    // lecture percent = average of lecture columns (parseScore)
+    sheet = currentSheet;
+    const lecInputs = tr.querySelectorAll('.lec');
+    lecInputs.forEach((inp,i)=>{
+      lecSumPct += parseScore(inp.value, sheet.lecCols[i]?.max);
+    });
+    const lecAvg = lecInputs.length ? (lecSumPct / lecInputs.length) : 0;
+    const labInputs = tr.querySelectorAll('.lab');
+    labInputs.forEach((inp,i)=>{
+      labSumPct += parseScore(inp.value, sheet.labCols[i]?.max);
+    });
+    const labAvg = labInputs.length ? (labSumPct / labInputs.length) : 0;
+    // final percent: lecture 67% lab 33%
+    const finalPct = (lecAvg * 0.67) + (labAvg * 0.33);
+    tr.querySelector('.finalPct').textContent = finalPct.toFixed(2) + '%';
+    tr.querySelector('.gwa').textContent = calcGWA(finalPct).toFixed(2);
+  });
+}
+
+/* parseScore with optional max points param: input can be "45/50" or a number */
+function parseScore(str, max=100){
+  if(!str) return 0;
+  const s = String(str).trim();
+  if(s.includes('/')){ const [n,d]=s.split('/').map(x=>Number(x)); if(!d) return 0; return (n/d)*100; }
+  const n = Number(s);
+  if(isNaN(n)) return 0;
+  // if numeric and less than or equal to max assume raw points; convert to percent
+  if(n <= max && max>0) return (n/max)*100;
+  // else assume percent
+  return Math.min(100, n);
+}
+
+/* calcGWA using your scale */
+function calcGWA(finalPercent){
+  let gwa = 1.0;
+  if (finalPercent < 96) gwa = 1.25;
+  if (finalPercent < 91) gwa = 1.5;
+  if (finalPercent < 86) gwa = 1.75;
+  if (finalPercent < 81) gwa = 2.0;
+  if (finalPercent < 76) gwa = 2.25;
+  if (finalPercent < 71) gwa = 2.5;
+  if (finalPercent < 66) gwa = 2.75;
+  if (finalPercent < 61) gwa = 3.0;
+  if (finalPercent < 51) gwa = 5.0;
+  return gwa;
+}
+
+/* ---------- Persist row data into sheet object ---------- */
+function persistRowToSheet(tr, sheet, rowIndex){
+  const lecVals = Array.from(tr.querySelectorAll('.lec')).map(i=>i.value);
+  const labVals = Array.from(tr.querySelectorAll('.lab')).map(i=>i.value);
+  const studentId = tr.querySelector('.sid').textContent;
+  const studentName = tr.querySelector('.sname').textContent;
+  sheet.rows[rowIndex].lec = lecVals;
+  sheet.rows[rowIndex].lab = labVals;
+  sheet.rows[rowIndex].studentId = studentId;
+  sheet.rows[rowIndex].studentName = studentName;
+}
+
+/* ---------- Save sheet & mark corresponding studentGrades ---------- */
+function saveSheet(sheet){
+  const idx = facultyGrades.findIndex(g => g.id === sheet.id);
+  if(idx===-1) facultyGrades.push(sheet); else facultyGrades[idx] = sheet;
+  localStorage.setItem(FACULTY_GRADES_KEY, JSON.stringify(facultyGrades));
+  // mark unread flag for students? we'll set sheet.unread = true
+  sheet.unread = true;
+  saveStudentGradesFromSheet(sheet);
+  updateNotifications();
+}
+
+/* when faculty saves sheet rows, also sync to studentGrades store for each student (so students view instantly) */
+function saveStudentGradesFromSheet(sheet){
+  // studentGrades keyed by studentId -> array of {subject, course, year, section, rowData}
+  const map = JSON.parse(localStorage.getItem(STUDENT_GRADES_KEY)) || {};
+  sheet.rows.forEach(r => {
+    const sid = r.studentId;
+    if(!sid) return;
+    map[sid] = map[sid] || [];
+    // upsert subject entry
+    const existing = map[sid].find(e=> e.subject===sheet.subject && e.course===sheet.course && e.year===sheet.year && e.section===sheet.section);
+    const rowData = {lec: r.lec||[], lab: r.lab||[], subject: sheet.subject, course: sheet.course, year: sheet.year, section: sheet.section, date: new Date().toLocaleString()};
+    if(existing){ Object.assign(existing, rowData); } else map[sid].push(rowData);
+  });
+  localStorage.setItem(STUDENT_GRADES_KEY, JSON.stringify(map));
+  // also persist facultyGrades array
+  localStorage.setItem(FACULTY_GRADES_KEY, JSON.stringify(facultyGrades));
+}
+
+/* alias for saveStudentGradesFromSheet */
+function markStudentGradesFromSheet(sheet){ saveStudentGradesFromSheet(sheet); }
+
+/* ---------- Load or create sheet when clicking Load / Create ---------- */
+document.getElementById('loadSheet').addEventListener('click', ()=>{
+  const raw = document.getElementById('subjectSelect').value;
+  if(!raw){ alert('Select your assigned subject first'); return; }
+  const obj = JSON.parse(raw);
+  const subject = obj.subject, course = obj.course, year = obj.year, section = obj.section || document.getElementById('sectionSelect').value || '';
+  // id key
+  const sheetId = `${subject}||${course}||${year}||${section}||${activeUser.email}`;
+  let sheet = facultyGrades.find(s => s.id === sheetId);
+  if(!sheet){
+    // create sheet from roster: students where course/year/section match
+    const roster = users.filter(u => u.role==='student' && u.course===course && u.year===year && (!section || u.section===section));
+    const rows = roster.map(s => ({studentId: s.id || s.email, studentName: (s.fname||'')+' '+(s.lname||''), lec: [], lab: []}));
+    sheet = {
+      id: sheetId, subject, course, year, section, facultyEmail: activeUser.email,
+      lecCols: [{title:'Quiz 1',max:50},{title:'Quiz 2',max:50},{title:'Midterm',max:100}],
+      labCols: [{title:'Lab1',max:50},{title:'Lab2',max:50},{title:'LabExam',max:100}],
+      passingPct: 60,
+      rows
+    };
+    facultyGrades.push(sheet);
+    localStorage.setItem(FACULTY_GRADES_KEY, JSON.stringify(facultyGrades));
+  }
+  currentSheet = sheet;
+  document.getElementById('sheetMeta').textContent = `Editing sheet: ${sheet.subject} — ${sheet.course}/${sheet.year} ${sheet.section?(' / '+sheet.section):''}`;
+  buildSheetUI(sheet);
+});
+
+/* ---------- Add student button (prompt for existing account) ---------- */
+document.getElementById('addStudentBtn').addEventListener('click', ()=>{
+  if(!currentSheet){ alert('Load a sheet first'); return; }
+  const sid = prompt('Enter student ID or email to add (must exist in admin users):');
+  if(!sid) return;
+  const s = users.find(u=>u.id===sid || u.email===sid);
+  if(!s){ if(!confirm('Student not found. Add blank entry with that ID?')) return; currentSheet.rows.push({studentId:sid,studentName:sid,lec:[],lab:[]}); }
+  else currentSheet.rows.push({studentId: s.id||s.email, studentName: (s.fname||'')+' '+(s.lname||''), lec:[], lab:[]});
+  saveSheet(currentSheet);
+  buildSheetUI(currentSheet);
+});
+
+/* ---------- Students list rendering ---------- */
+function renderStudents(){
+  const wrap = document.getElementById('studentsWrap');
+  const assigned = users.filter(u=>u.role==='student' && u.course); // filter can be tightened by faculty assignments
+  assigned.sort((a,b)=> (a.lname||'').localeCompare(b.lname||''));
+  if(assigned.length===0){ wrap.innerHTML = '<p>No students found.</p>'; document.getElementById('stat-students').textContent='0'; return; }
+  let html = '<table><thead><tr><th>ID</th><th>Name</th><th>Course</th><th>Year</th><th>Section</th><th>Action</th></tr></thead><tbody>';
+  assigned.forEach(s => html += `<tr><td>${s.id||s.email}</td><td>${s.fname||''} ${s.lname||''}</td><td>${s.course||''}</td><td>${s.year||''}</td><td>${s.section||''}</td>
+    <td><button class="btn add" onclick="openStudentInSheet('${s.email||s.id}')">Open</button></td></tr>`);
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+  document.getElementById('stat-students').textContent = assigned.length;
+}
+window.openStudentInSheet = function(emailOrId){
+  // find student then add to current sheet if loaded
+  if(!currentSheet) { alert('Load a sheet first.'); return; }
+  const s = users.find(u=>u.email===emailOrId || u.id===emailOrId);
+  if(!s){ alert('Student not found'); return;}
+  if(currentSheet.rows.some(r=>r.studentId===s.id||r.studentId===s.email)) { alert('Student already in sheet'); return; }
+  currentSheet.rows.push({studentId: s.id||s.email, studentName: (s.fname||'')+' '+(s.lname||'')});
+  saveSheet(currentSheet); buildSheetUI(currentSheet);
+}
+
+/* ---------- Lacking ---------- */
+function renderLacking(){
+  const sel = document.getElementById('lackingStudent');
+  sel.innerHTML = '';
+  users.filter(u=>u.role==='student').forEach(s => {
+    const o = document.createElement('option'); o.value = s.email||s.id; o.textContent = `${s.fname||''} ${s.lname||''} (${s.course||''})`; sel.appendChild(o);
+  });
+  const list = document.getElementById('lackingList');
+  if(lacking.length===0) list.innerHTML = '<p>No lacking entries yet.</p>';
+  else {
+    list.innerHTML = '<table><thead><tr><th>Student</th><th>Item</th><th>By</th><th>Date</th></tr></thead><tbody>' +
+      lacking.map(l=>`<tr><td>${l.studentName}</td><td>${l.item}</td><td>${l.assignedBy}</td><td>${l.date}</td></tr>`).join('') +
+      '</tbody></table>';
+  }
+}
+document.getElementById('addLackingBtn').addEventListener('click', ()=>{
+  const sid = document.getElementById('lackingStudent').value;
+  const item = document.getElementById('lackingItem').value.trim();
+  if(!sid || !item) return alert('Select student and enter item');
+  const s = users.find(u=>u.email===sid || u.id===sid);
+  lacking.push({studentId: s.id||s.email, studentName: (s.fname||'')+' '+(s.lname||''), item, course: s.course, year: s.year, assignedBy: activeUser.email, date: new Date().toLocaleString()});
+  localStorage.setItem(LACKING_KEY, JSON.stringify(lacking));
+  document.getElementById('lackingItem').value=''; renderLacking();
+});
+
+/* ---------- Tasks ---------- */
+function renderTasks(){
+  const secSel = document.getElementById('taskSection');
+  secSel.innerHTML = '';
+  const sectionsAll = Array.from(new Set(users.filter(u=>u.role==='student' && u.section).map(s=>s.section)));
+  sectionsAll.forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; secSel.appendChild(o); });
+  const list = document.getElementById('taskList');
+  if(tasks.length===0) list.innerHTML='<p>No tasks assigned yet.</p>';
+  else list.innerHTML = '<table><thead><tr><th>Student</th><th>Task</th><th>Score</th><th>Date</th></tr></thead><tbody>' + tasks.map(t=>`<tr><td>${t.studentName||''}</td><td>${t.task}</td><td>${t.score||''}</td><td>${t.date}</td></tr>`).join('') + '</tbody></table>';
+}
+document.getElementById('addTaskBtn').addEventListener('click', ()=>{
+  const sec = document.getElementById('taskSection').value;
+  const desc = document.getElementById('taskDesc').value.trim();
+  const score = document.getElementById('taskScore').value.trim();
+  if(!sec || !desc){ return alert('Select section and enter task'); }
+  // assign to all students in that section
+  const roster = users.filter(u => u.role==='student' && u.section===sec);
+  roster.forEach(s => tasks.push({studentId:s.id||s.email, studentName:(s.fname||'')+' '+(s.lname||''), task:desc, score, course:s.course, date:new Date().toLocaleString(), assignedBy: activeUser.email}));
+  localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+  document.getElementById('taskDesc').value=''; document.getElementById('taskScore').value=''; renderTasks();
+});
+
+/* ---------- Complaints ---------- */
+function renderComplaints(filter){
+  const tbody = document.querySelector('#complaintsTable tbody');
+  tbody.innerHTML = '';
+  const filtered = complaints.filter(c => !filter || (
+    (filter.course? c.course===filter.course:true) &&
+    (filter.section? c.section===filter.section:true) &&
+    (filter.subject? c.subject===filter.subject:true)
+  )).filter(c => c.to === (activeUser.email || `${activeUser.fname} ${activeUser.lname}`));
+  if(filtered.length===0) tbody.innerHTML = '<tr><td colspan="8">No complaints</td></tr>';
+  else filtered.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${c.studentName}</td><td>${c.course}</td><td>${c.section||''}</td><td>${c.subject||''}</td>
+      <td>${c.message}</td><td>${c.reply||'—'}</td><td>${c.date}</td>
+      <td><button class="btn" onclick="replyComplaint('${c.id}')">Reply</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById('filterComplaints').addEventListener('click', ()=> {
+  const filter = {course: document.getElementById('filterCourse').value||'', section: document.getElementById('filterSection').value||'', subject: document.getElementById('filterSubject').value||''};
+  renderComplaints(filter);
+});
+window.replyComplaint = function(id){
+  const msg = prompt('Type your reply to the student:');
+  if(!msg) return;
+  const idx = complaints.findIndex(c=>c.id===id);
+  if(idx===-1) return alert('Not found');
+  complaints[idx].reply = msg;
+  complaints[idx].replyDate = new Date().toLocaleString();
+  localStorage.setItem(COMPLAINTS_KEY, JSON.stringify(complaints));
+  alert('Reply saved; student will see it in their notifications.');
+  renderComplaints();
+}
+
+/* ---------- Helpers ---------- */
+function saveAll(){
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  localStorage.setItem(FACULTY_GRADES_KEY, JSON.stringify(facultyGrades));
+  localStorage.setItem(COMPLAINTS_KEY, JSON.stringify(complaints));
+  localStorage.setItem(LACKING_KEY, JSON.stringify(lacking));
+  localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+}
+function saveStudentGradesFromSheet(sheet){
+  // push into studentGrades mapping for quick student lookup
+  const map = JSON.parse(localStorage.getItem(STUDENT_GRADES_KEY)) || {};
+  sheet.rows.forEach(r => {
+    const sid = r.studentId;
+    if(!sid) return;
+    map[sid] = map[sid] || [];
+    const existing = map[sid].find(e=> e.subject===sheet.subject && e.course===sheet.course && e.year===sheet.year && e.section===sheet.section);
+    const rowData = {lec: r.lec||[], lab: r.lab||[], subject: sheet.subject, course: sheet.course, year: sheet.year, section: sheet.section, date: new Date().toLocaleString()};
+    if(existing) Object.assign(existing, rowData); else map[sid].push(rowData);
+  });
+  localStorage.setItem(STUDENT_GRADES_KEY, JSON.stringify(map));
+}
+
+/* ---------- On load ---------- */
+(function init(){
+  // ensure there are sample users if none exist (optional for demo)
+  if(!users || users.length===0){
+    users = [
+      {id:'2025001', fname:'Juan', lname:'Dela Cruz', email:'juan@example.com', role:'student', course:'BSIT', year:'2nd Year', section:'BSIT-2A'},
+      {id:'2025002', fname:'Maria', lname:'Santos', email:'maria@example.com', role:'student', course:'BSIT', year:'2nd Year', section:'BSIT-2A'},
+      {id:'f001', fname:'Prof.', lname:'Reyes', email:'reyes@example.com', role:'faculty', assignedSubjects:[{subject:'Web Systems',course:'BSIT',year:'2nd Year',section:'BSIT-2A'}]}
+    ];
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  }
+  // complaints/lacking/tasks default arrays are already read
+  // populate controls
+  populateSheetControls();
+  // populate section select and filterSection/selectSubject for complaints
+  const filterSec = document.getElementById('filterSection');
+  const uniqSec = Array.from(new Set(users.filter(u=>u.role==='student' && u.section).map(s=>s.section))).filter(Boolean);
+  filterSec.innerHTML = '<option value="">Section</option>'; uniqSec.forEach(s=>{const o=document.createElement('option'); o.value=s; o.textContent=s; filterSec.appendChild(o);});
+  const filterSubject = document.getElementById('filterSubject');
+  filterSubject.innerHTML = '<option value="">Subject</option>';
+  // fill complaints target in sample
+  // stats
+  document.getElementById('stat-sheets').textContent = facultyGrades.filter(g=>g.facultyEmail===activeUser.email).length;
+  document.getElementById('stat-complaints').textContent = complaints.filter(c=>c.to===activeUser.email && !c.reply).length;
+  updateNotifications();
+})();
+</script>
+</body>
+</html>

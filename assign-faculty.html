@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assign Faculty Subjects</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #ffcc00;
+      color: #000;
+      padding: 15px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 20px;
+      letter-spacing: 1px;
+    }
+    .container {
+      width: 90%;
+      max-width: 700px;
+      background: #fff;
+      padding: 25px;
+      margin: 40px auto;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #1e3a8a;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin: 10px 0 5px;
+    }
+    select, input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+    button {
+      background: #ffcc00;
+      border: none;
+      color: #000;
+      font-weight: bold;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+      margin-right: 5px;
+    }
+    button:hover {
+      background: #facc15;
+    }
+    .btn-view {
+      background: #3b82f6;
+      color: white;
+    }
+    .btn-view:hover {
+      background: #2563eb;
+    }
+    .btn-delete {
+      background: #ef4444;
+      color: white;
+    }
+    .btn-delete:hover {
+      background: #dc2626;
+    }
+    .btn-back {
+      background: #facc15;
+      color: white;
+      margin-top: 10px;
+    }
+    .btn-back:hover {
+      background: #6b7280;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #facc15;
+    }
+  </style>
+</head>
+<body>
+
+  <header>ASSIGN FACULTY SUBJECTS</header>
+  <div class="container">
+    <h2>Assign Faculty to Course / Subject</h2>
+
+    <label for="facultySelect">Select Faculty:</label>
+    <select id="facultySelect"></select>
+
+    <label for="courseSelect">Select Course:</label>
+    <select id="courseSelect">
+      <option value="">-- Select Course --</option>
+      <option value="BSIT">BSIT</option>
+      <option value="BSESM">BSESM</option>
+      <option value="BSTCM">BSTEM</option>
+      <option value="BSMET">BSMET</option>
+      <option value="BSNAME">BSNAME</option>
+    </select>
+
+    <label for="yearSelect">Select Year Level:</label>
+    <select id="yearSelect">
+      <option value="">-- Select Year Level --</option>
+      <option value="1st Year">1st Year</option>
+      <option value="2nd Year">2nd Year</option>
+      <option value="3rd Year">3rd Year</option>
+      <option value="4th Year">4th Year</option>
+    </select>
+
+    <label for="subjectInput">Enter Subject:</label>
+    <input type="text" id="subjectInput" placeholder="e.g. Web Systems, Programming 1">
+
+    <button onclick="assignFaculty()">💾 Save Assignment</button>
+    <button class="btn-view" onclick="viewAssignedFaculty()">📋 View Saved Faculty</button>
+    <button class="btn-back" onclick="window.location.href='admin-dashboard.html'">⬅ Back to Dashboard</button>
+
+    <div id="facultyList"></div>
+  </div>
+
+  <script>
+    // Load faculty list from localStorage
+    function loadFaculty() {
+      const users = JSON.parse(localStorage.getItem("users")) || [];
+      const faculty = users.filter(u => u.role === "faculty");
+      const select = document.getElementById("facultySelect");
+      select.innerHTML = '<option value="">-- Select Faculty --</option>';
+
+      faculty.forEach(f => {
+        const option = document.createElement("option");
+        option.value = f.email;
+        option.textContent = f.fullname || f.email;
+        select.appendChild(option);
+      });
+    }
+
+    function assignFaculty() {
+      const facultyEmail = document.getElementById("facultySelect").value;
+      const course = document.getElementById("courseSelect").value;
+      const year = document.getElementById("yearSelect").value;
+      const subject = document.getElementById("subjectInput").value.trim();
+
+      if (!facultyEmail || !course || !year || !subject) {
+        alert("⚠️ Please fill in all fields.");
+        return;
+      }
+
+      let users = JSON.parse(localStorage.getItem("users")) || [];
+      const index = users.findIndex(u => u.email === facultyEmail);
+
+      if (index !== -1) {
+        if (!users[index].assignedSubjects) users[index].assignedSubjects = [];
+        users[index].assignedSubjects.push({ course, year, subject });
+        localStorage.setItem("users", JSON.stringify(users));
+        alert("✅ Faculty assignment saved!");
+      } else {
+        alert("⚠️ Faculty not found!");
+      }
+    }
+
+    function viewAssignedFaculty() {
+      const users = JSON.parse(localStorage.getItem("users")) || [];
+      const facultyList = users.filter(u => u.role === "faculty" && u.assignedSubjects);
+
+      if (facultyList.length === 0) {
+        document.getElementById("facultyList").innerHTML = "<p>No faculty assignments yet.</p>";
+        return;
+      }
+
+      let html = `<table>
+        <tr>
+          <th>Name</th><th>Email</th><th>Course</th><th>Year Level</th><th>Subject</th><th>Action</th>
+        </tr>`;
+
+      facultyList.forEach(f => {
+        f.assignedSubjects.forEach((sub, idx) => {
+          html += `<tr>
+            <td>${f.fullname || "Unnamed"}</td>
+            <td>${f.email}</td>
+            <td>${sub.course}</td>
+            <td>${sub.year}</td>
+            <td>${sub.subject}</td>
+            <td><button class="btn-delete" onclick="deleteAssignment('${f.email}', ${idx})">Delete</button></td>
+          </tr>`;
+        });
+      });
+
+      html += `</table>`;
+      document.getElementById("facultyList").innerHTML = html;
+    }
+
+    function deleteAssignment(email, index) {
+      let users = JSON.parse(localStorage.getItem("users")) || [];
+      const faculty = users.find(u => u.email === email);
+
+      if (faculty && faculty.assignedSubjects) {
+        faculty.assignedSubjects.splice(index, 1);
+        localStorage.setItem("users", JSON.stringify(users));
+        alert("🗑️ Assignment deleted successfully!");
+        viewAssignedFaculty();
+      }
+    }
+
+    loadFaculty();
+  </script>
+
+</body>
+</html>

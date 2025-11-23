@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background-color: #f4f6fc;
+      margin: 0;
+      color: #333;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed;
+      width: 230px;
+      height: 100%;
+      background-color: #1a1875;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+
+    .sidebar h2 {
+      text-align: center;
+      color: #ffca00;
+      margin-bottom: 30px;
+    }
+
+    .sidebar a {
+      color: white;
+      text-decoration: none;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 8px;
+      transition: 0.2s;
+    }
+
+    .sidebar a:hover,
+    .sidebar a.active {
+      background-color: #2927a3;
+    }
+
+    /* Main Container */
+    .container {
+      margin-left: 250px;
+      padding: 30px;
+    }
+
+    h1 {
+      color: #1a1875;
+    }
+
+    /* Cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 25px;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      transition: 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .card h2 {
+      font-size: 40px;
+      margin: 10px 0;
+      color: #1a1875;
+    }
+
+    .card p {
+      color: #666;
+      font-weight: bold;
+      margin: 0;
+    }
+
+    .student { border-left: 6px solid #1a1875; }
+    .faculty { border-left: 6px solid #ffca00; }
+    .section { border-left: 6px solid #28a745; }
+    .course { border-left: 6px solid #17a2b8; }
+
+    /* Tables */
+    .table-section {
+      margin-top: 50px;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    h2.table-title {
+      color: #1a1875;
+      margin-bottom: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+
+    th {
+      background: #ffca00;
+      color: #1a1875;
+    }
+
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+
+    .footer {
+      margin-top: 50px;
+      text-align: center;
+      color: #777;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>ADMIN PANEL</h2>
+    <a href="admin-dashboard.html" class="active">🏠 Dashboard</a>
+    <a href="make-accounts.html">👤 Make New Accounts</a>
+    <a href="assign-year.html">📘 Assign Year / Section / Course</a>
+    <a href="assign-faculty.html">📚 Assign Faculty / Subjects / Course</a>
+    <a href="login.html">🚪 Logout</a>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="container">
+    <h1>Welcome, Admin! 👋</h1>
+    <p>Here’s an overview of your system records:</p>
+
+    <div class="cards">
+      <div class="card student">
+        <h2 id="totalStudents">0</h2>
+        <p>Students Enrolled</p>
+      </div>
+
+      <div class="card faculty">
+        <h2 id="totalFaculty">0</h2>
+        <p>Faculty Members</p>
+      </div>
+
+      <div class="card section">
+        <h2 id="totalSections">0</h2>
+        <p>Unique Sections</p>
+      </div>
+
+      <div class="card course">
+        <h2 id="totalCourses">0</h2>
+        <p>Offered Courses</p>
+      </div>
+    </div>
+
+    <!-- Students Table -->
+    <div class="table-section">
+      <h2 class="table-title">🧑‍🎓 Students List</h2>
+      <table id="studentTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Full Name</th>
+            <th>Email</th>
+            <th>Year</th>
+            <th>Section</th>
+            <th>Course</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Faculty Table -->
+    <div class="table-section">
+      <h2 class="table-title">👩‍🏫 Faculty List</h2>
+      <table id="facultyTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Full Name</th>
+            <th>Email</th>
+            <th>Subject</th>
+            <th>Course</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="footer">
+      <p>📊 Web-Based Academic Dashboard | All rights reserved © 2025</p>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script>
+    function loadDashboard() {
+      const users = JSON.parse(localStorage.getItem("users")) || [];
+
+      const students = users.filter(u => u.role === "student");
+      const faculty = users.filter(u => u.role === "faculty");
+
+      // Count unique sections and courses
+      const uniqueSections = new Set(students.map(s => s.section).filter(Boolean));
+      const uniqueCourses = new Set(
+        [...students.map(s => s.course), ...faculty.map(f => f.course)].filter(Boolean)
+      );
+
+      // Update dashboard cards
+      document.getElementById("totalStudents").textContent = students.length;
+      document.getElementById("totalFaculty").textContent = faculty.length;
+      document.getElementById("totalSections").textContent = uniqueSections.size;
+      document.getElementById("totalCourses").textContent = uniqueCourses.size;
+
+      // Populate tables
+      populateTable("studentTable", students, ["fullname", "email", "year", "section", "course"]);
+      populateTable("facultyTable", faculty, ["fullname", "email", "subject", "course"]);
+    }
+
+    function populateTable(tableId, data, fields) {
+      const tbody = document.querySelector(`#${tableId} tbody`);
+      tbody.innerHTML = "";
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${fields.length + 1}">No records found.</td></tr>`;
+        return;
+      }
+
+      data.forEach((item, index) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          ${fields.map(field => `<td>${item[field] || "—"}</td>`).join("")}
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

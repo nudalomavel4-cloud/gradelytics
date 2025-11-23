@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assign Year, Section & Course</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #ffcc00;
+      color: #000;
+      padding: 15px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 20px;
+      letter-spacing: 1px;
+    }
+    .container {
+      width: 90%;
+      max-width: 700px;
+      background: #fff;
+      padding: 25px;
+      margin: 40px auto;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #1e3a8a;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin: 10px 0 5px;
+    }
+    select, input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+    button {
+      background: #ffcc00;
+      border: none;
+      color: #000;
+      font-weight: bold;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #facc15;
+    }
+    .btn-view {
+      background: #3b82f6;
+      color: white;
+      margin-top: 10px;
+    }
+    .btn-view:hover {
+      background: #2563eb;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #facc15;
+    }
+    .delete-btn {
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .delete-btn:hover {
+      background-color: #dc2626;
+    }
+    .btn-back {
+      background: #facc15;
+      color: white;
+      margin-top: 10px;
+    }
+    .btn-back:hover {
+      background: #6b7280;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #facc15;
+    }
+  </style>
+</head>
+<body>
+
+  <header>ASSIGN YEAR LEVEL / SECTION / COURSE</header>
+  <div class="container">
+    <h2>Assign Student Details</h2>
+
+    <label for="studentSelect">Select Student:</label>
+    <select id="studentSelect"></select>
+
+    <label for="courseSelect">Select Course:</label>
+    <select id="courseSelect">
+      <option value="">-- Select Course --</option>
+      <option value="BSIT">BSIT</option>
+      <option value="BSTCM">BSTCM</option>
+      <option value="BSESM">BSESM</option>
+      <option value="BSMET">BSMET</option>
+      <option value="BSNAME">BSNAME</option>
+    </select>
+
+    <label for="yearSelect">Select Year Level:</label>
+    <select id="yearSelect">
+      <option value="">-- Select Year Level --</option>
+      <option value="1st Year">1st Year</option>
+      <option value="2nd Year">2nd Year</option>
+      <option value="3rd Year">3rd Year</option>
+      <option value="4th Year">4th Year</option>
+    </select>
+
+    <label for="sectionSelect">Select Section:</label>
+    <select id="sectionSelect">
+      <option value="">-- Select Section --</option>
+      <option value="Section A">Section A</option>
+      <option value="Section B">Section B</option>
+      <option value="Section C">Section C</option>
+    </select>
+
+    <button onclick="assignStudent()">💾 Save Assignment</button>
+    <button class="btn-view" onclick="viewAssignedStudents()">📋 View Saved Students</button>
+    <button class="btn-back" onclick="window.location.href='admin-dashboard.html'">⬅ Back to Dashboard</button>
+
+    <div id="studentList"></div>
+  </div>
+
+  <script>
+    // Load students (role = 'student') from localStorage
+    function loadStudents() {
+      const users = JSON.parse(localStorage.getItem("users")) || [];
+      const students = users.filter(u => u.role === "student");
+      const select = document.getElementById("studentSelect");
+      select.innerHTML = '<option value="">-- Select Student --</option>';
+
+      students.forEach(s => {
+        const option = document.createElement("option");
+        option.value = s.email;
+        option.textContent = s.fullname || s.email;
+        select.appendChild(option);
+      });
+    }
+
+    function assignStudent() {
+      const selectedStudent = document.getElementById("studentSelect").value;
+      const course = document.getElementById("courseSelect").value;
+      const year = document.getElementById("yearSelect").value;
+      const section = document.getElementById("sectionSelect").value;
+
+      if (!selectedStudent || !course || !year || !section) {
+        alert("⚠️ Please fill all fields before saving.");
+        return;
+      }
+
+      let users = JSON.parse(localStorage.getItem("users")) || [];
+      const index = users.findIndex(u => u.email === selectedStudent);
+
+      if (index !== -1) {
+        users[index].course = course;
+        users[index].year = year;
+        users[index].section = section;
+        localStorage.setItem("users", JSON.stringify(users));
+        alert("✅ Student assignment saved!");
+        viewAssignedStudents();
+      } else {
+        alert("⚠️ Student not found!");
+      }
+    }
+
+    function viewAssignedStudents() {
+      const users = JSON.parse(localStorage.getItem("users")) || [];
+      const students = users.filter(u => u.role === "student" && u.course && u.section);
+
+      if (students.length === 0) {
+        document.getElementById("studentList").innerHTML = "<p>No assigned students yet.</p>";
+        return;
+      }
+
+      let html = `<table>
+        <tr><th>Name</th><th>Email</th><th>Course</th><th>Year</th><th>Section</th><th>Action</th></tr>`;
+
+      students.forEach(s => {
+        html += `<tr>
+          <td>${s.fullname || "Unnamed"}</td>
+          <td>${s.email}</td>
+          <td>${s.course}</td>
+          <td>${s.year}</td>
+          <td>${s.section}</td>
+          <td><button class="delete-btn" onclick="deleteStudent('${s.email}')">Delete</button></td>
+        </tr>`;
+      });
+
+      html += `</table>`;
+      document.getElementById("studentList").innerHTML = html;
+    }
+
+    function deleteStudent(email) {
+      if (!confirm("Are you sure you want to delete this student's assignment?")) return;
+
+      let users = JSON.parse(localStorage.getItem("users")) || [];
+      const index = users.findIndex(u => u.email === email);
+
+      if (index !== -1) {
+        delete users[index].course;
+        delete users[index].year;
+        delete users[index].section;
+        localStorage.setItem("users", JSON.stringify(users));
+        alert("🗑️ Student assignment deleted successfully!");
+        viewAssignedStudents();
+      }
+    }
+
+    loadStudents();
+  </script>
+</body>
+</html>

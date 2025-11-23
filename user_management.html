@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>User Account Management</title>
+<style>
+  :root{
+    --header-bg:#ffd633;
+    --accent:#0b74b7;
+    --muted:#666;
+    --border:#ddd;
+  }
+  body{font-family: Inter, system-ui, Arial; margin:16px; background:#f6f8fb; color:#111;}
+  h1{margin:0 0 12px; font-size:18px;}
+  .controls{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center;}
+  button{padding:8px 10px; border-radius:6px; border:1px solid #bbb; background:white; cursor:pointer;}
+  button.primary{background:var(--accent); color:white; border-color:var(--accent);}
+  button.danger{background:#ff6b6b; color:white; border-color:#ff6b6b;}
+  .board{overflow:auto; border:2px solid #cfcfcf; border-radius:6px; background:white;}
+  table{border-collapse:collapse; width:100%; min-width:950px;}
+  th, td{border:1px solid var(--border); padding:6px 8px; text-align:left; font-size:13px;}
+  th{background:var(--header-bg); font-weight:700; color:#000; position:relative; user-select:none;}
+  th.sortable{cursor:pointer;}
+  th .sort-ind {font-size:11px; margin-left:6px; color:var(--muted)}
+  td.center{ text-align:center;}
+  td.small{font-size:12px; color:var(--muted)}
+  input.inline, select.inline {
+    width:100%;
+    box-sizing:border-box;
+    border:none;
+    padding:4px 2px;
+    font-size:13px;
+    background:transparent;
+  }
+  input.inline:focus, select.inline:focus{outline:2px solid rgba(11,116,183,0.15); background:#fff;}
+  .col-actions{display:flex; gap:6px; justify-content:flex-end;}
+  .searchBox{display:flex; gap:8px; align-items:center;}
+  .searchBox input{padding:8px 10px; border-radius:6px; border:1px solid #ccc; width:300px;}
+  .small-muted{font-size:12px; color:var(--muted)}
+  .badge{display:inline-block; padding:2px 6px; border-radius:10px; font-size:11px; background:#eef6ff; color:var(--accent); border:1px solid rgba(11,116,183,0.12)}
+  @media (max-width:900px){
+    table{min-width:800px;}
+    .searchBox input{width:160px;}
+  }
+</style>
+</head>
+<body>
+<h1>User Account Management</h1>
+
+<div class="controls">
+  <div style="display:flex; gap:8px; align-items:center;">
+    <button id="addUserBtn">➕ Add User</button>
+    <button id="saveBtn" class="primary">💾 Save</button>
+    <button id="loadBtn">🔁 Load</button>
+    <button id="resetBtn" class="danger">🗑 Reset</button>
+    <button id="exportBtn">⬇ Export CSV</button>
+  </div>
+
+  <div style="margin-left:auto" class="searchBox">
+    <input id="searchInput" placeholder="Search by name, id, email, username, or section..." />
+    <div class="small-muted">Sort: click column headers</div>
+  </div>
+</div>
+
+<div class="board">
+  <table id="userTable" aria-label="User accounts table">
+    <thead>
+      <tr id="headRow">
+        <!-- dynamic -->
+      </tr>
+    </thead>
+    <tbody id="bodyRows">
+      <!-- dynamic -->
+    </tbody>
+  </table>
+</div>
+
+<div style="margin-top:10px;" class="small-muted">
+  Tip: Click a cell to edit. For Student role, fill the Section field. Data persists in your browser (localStorage).
+</div>
+
+<script>
+/* User Account Management Module
+   Single-file app storing to localStorage
+*/
+
+const STORAGE_KEY = 'userAccounts_v1';
+let state = {
+  users: [], // {id, userId, name, role, email, username, password, section, status}
+  sortKey: 'userId',
+  sortDir: 'asc', // 'asc' | 'desc'
+  filter: ''
+};
+
+const columns = [
+  {key:'userId', label:'User ID', sortable:true},
+  {key:'name', label:'Name', sortable:true},
+  {key:'role', label:'Role', sortable:true},
+  {key:'email', label:'Email', sortable:true},
+  {key:'username', label:'Username', sortable:true},
+  {key:'password', label:'Password', sortable:false},
+  {key:'section', label:'Section', sortable:true},
+  {key:'status', label:'Status', sortable:true},
+  {key:'actions', label:'Actions', sortable:false}
+];
+
+const headRow = document.getElementById('headRow');
+const bodyRows = document.getElementById('bodyRows');
+const addUserBtn = document.getElementById('addUserBtn');
+const saveBtn = document.getElementById('saveBtn');
+const loadBtn = document.getElementById('loadBtn');
+const resetBtn = document.getElementById('resetBtn');
+const exportBtn = document.getElementById('exportBtn');
+const searchInput = document.getElementById('searchInput');
+
+function uid(pref='u'){ return pref + '_' + Math.random().toString(36).slice(2,9); }
+
+function defaultUsers(){
+  state.users = [
+    {id:uid(), userId:'2023301001', name:'Juan Dela Cruz', role:'Student', email:'juan.dc@example.com', username:'juan_dc', password:'pass1234', section:'BSIT-2A', status:'Active'},
+    {id:uid(), userId:'2023301002', name:'Maria Santos', role:'Faculty', email:'maria.s@example.com', username:'msantos', password:'secret', section:'', status:'Active'},
+    {id:uid(), userId:'2023301003', name:'Pedro Reyes', role:'Student', email:'pedro.r@example.com', username:'preyes', password:'pwd', section:'BSCS-1B', status:'Inactive'}
+  ];
+  state.sortKey = 'userId';
+  state.sortDir = 'asc';
+  state.filter = '';
+}
+
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  flashSave('Saved');
+}
+function loadState(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(raw){
+    try {
+      state = JSON.parse(raw);
+      // back-compat: ensure fields
+      if(!state.users) state.users = [];
+      render();
+      flashSave('Loaded');
+      return;
+    } catch(e){
+      console.error('load err', e);
+    }
+  }
+  defaultUsers();
+  render();
+  saveState();
+}
+
+function resetState(){
+  if(confirm('Reset user data to sample defaults? This will overwrite saved data.')) {
+    defaultUsers();
+    saveState();
+    render();
+  }
+}
+
+function flashSave(text){
+  const old = saveBtn.textContent;
+  saveBtn.textContent = '💾 ' + text;
+  setTimeout(()=> saveBtn.textContent = old, 900);
+}
+
+/* Render header with sortable columns */
+function renderHeader(){
+  headRow.innerHTML = '';
+  columns.forEach(col=>{
+    const th = document.createElement('th');
+    th.textContent = col.label;
+    if(col.sortable){
+      th.className = 'sortable';
+      const sortInd = document.createElement('span');
+      sortInd.className = 'sort-ind';
+      sortInd.textContent = (state.sortKey === col.key) ? (state.sortDir === 'asc' ? '▲' : '▼') : '↕';
+      th.appendChild(sortInd);
+      th.addEventListener('click', ()=>{
+        if(state.sortKey === col.key) state.sortDir = (state.sortDir === 'asc' ? 'desc' : 'asc');
+        else { state.sortKey = col.key; state.sortDir = 'asc'; }
+        render();
+      });
+    }
+    headRow.appendChild(th);
+  });
+}
+
+/* Utility: compare for sorting */
+function compareValues(a,b,key){
+  const va = (a[key] || '').toString().toLowerCase();
+  const vb = (b[key] || '').toString().toLowerCase();
+  if(va < vb) return -1;
+  if(va > vb) return 1;
+  return 0;
+}
+
+/* Render body rows (with inline editable inputs) */
+function renderBody(){
+  bodyRows.innerHTML = '';
+  // filter
+  const q = (state.filter || '').trim().toLowerCase();
+  let list = state.users.filter(u=>{
+    if(!q) return true;
+    return (u.userId||'').toLowerCase().includes(q) ||
+           (u.name||'').toLowerCase().includes(q) ||
+           (u.email||'').toLowerCase().includes(q) ||
+           (u.username||'').toLowerCase().includes(q) ||
+           (u.section||'').toLowerCase().includes(q);
+  });
+
+  // sort
+  if(state.sortKey){
+    list.sort((a,b)=>{
+      const res = compareValues(a,b,state.sortKey);
+      return state.sortDir === 'asc' ? res : -res;
+    });
+  }
+
+  list.forEach((u, idx) => {
+    const tr = document.createElement('tr');
+
+    // userId
+    tr.appendChild(cell_input(u, 'userId', u.userId, 'text', true));
+
+    // name
+    tr.appendChild(cell_input(u, 'name', u.name, 'text', true));
+
+    // role (select) - when role changes, show/hide section
+    tr.appendChild(cell_select(u, 'role', ['Admin','Faculty','Student'], u.role, true, ()=>{
+      // callback on role change to ensure section visibility
+      if(u.role !== 'Student') u.section = '';
+      saveState(); render(); // re-render to update section field visibility
+    }));
+
+    // email
+    tr.appendChild(cell_input(u, 'email', u.email, 'email', true));
+
+    // username
+    tr.appendChild(cell_input(u, 'username', u.username, 'text', true));
+
+    // password - masked
+    tr.appendChild(cell_password(u));
+
+    // section - only for students
+    const secTd = document.createElement('td');
+    if(u.role === 'Student'){
+      const inp = document.createElement('input');
+      inp.className = 'inline';
+      inp.value = u.section || '';
+      inp.placeholder = 'e.g. BSIT-2A';
+      inp.addEventListener('input', (e)=>{ u.section = e.target.value; saveState(); });
+      inp.addEventListener('keydown', onInputKeydown);
+      secTd.appendChild(inp);
+    } else {
+      secTd.innerHTML = '<span class="small-muted">—</span>';
+    }
+    tr.appendChild(secTd);
+
+    // status
+    tr.appendChild(cell_select(u, 'status', ['Active','Inactive'], u.status || 'Active', true, ()=> saveState() ));
+
+    // actions
+    const actionTd = document.createElement('td');
+    actionTd.className = 'center';
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '🗑';
+    delBtn.title = 'Delete user';
+    delBtn.addEventListener('click', ()=>{
+      if(!confirm('Delete user: ' + (u.name || u.userId || 'unknown') + '?')) return;
+      state.users = state.users.filter(x => x.id !== u.id);
+      saveState();
+      render();
+    });
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = '⧉';
+    copyBtn.title = 'Duplicate user (clone)';
+    copyBtn.style.marginLeft='6px';
+    copyBtn.addEventListener('click', ()=>{
+      const clone = JSON.parse(JSON.stringify(u));
+      clone.id = uid(); clone.userId = clone.userId + '_copy';
+      state.users.push(clone);
+      saveState();
+      render();
+    });
+    actionTd.appendChild(delBtn);
+    actionTd.appendChild(copyBtn);
+    tr.appendChild(actionTd);
+
+    bodyRows.appendChild(tr);
+  });
+}
+
+/* helper: create a td with inline input */
+function cell_input(user, fieldKey, value, type='text', saveOnChange=true){
+  const td = document.createElement('td');
+  const input = document.createElement('input');
+  input.className = 'inline';
+  input.type = 'text';
+  input.value = value || '';
+  input.addEventListener('input', (e)=>{
+    user[fieldKey] = e.target.value;
+    if(saveOnChange) saveState();
+  });
+  input.addEventListener('keydown', onInputKeydown);
+  td.appendChild(input);
+  return td;
+}
+
+/* helper: select dropdown cell */
+function cell_select(user, fieldKey, options, value, saveOnChange=true, onChangeCallback){
+  const td = document.createElement('td');
+  const sel = document.createElement('select');
+  sel.className = 'inline';
+  options.forEach(o=> {
+    const opt = document.createElement('option'); opt.value = o; opt.textContent = o;
+    if(o === value) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', (e)=>{
+    user[fieldKey] = e.target.value;
+    if(onChangeCallback) onChangeCallback();
+    if(saveOnChange) saveState();
+  });
+  td.appendChild(sel);
+  return td;
+}
+
+/* password cell: masked, clicking reveals edit input */
+function cell_password(user){
+  const td = document.createElement('td');
+  const pwdWrap = document.createElement('div');
+  pwdWrap.style.display='flex';
+  pwdWrap.style.gap='6px';
+  const mask = document.createElement('span');
+  mask.textContent = '******';
+  mask.className = 'small-muted';
+  mask.style.minWidth='80px';
+  mask.style.display='inline-block';
+  mask.title = 'Click edit to change password';
+  const editBtn = document.createElement('button');
+  editBtn.textContent = '✏️';
+  editBtn.addEventListener('click', ()=>{
+    // replace mask with input
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'inline';
+    input.value = user.password || '';
+    input.placeholder='new password';
+    input.addEventListener('input', (e)=> { user.password = e.target.value; saveState(); });
+    input.addEventListener('keydown', onInputKeydown);
+    pwdWrap.replaceChild(input, mask);
+    editBtn.textContent = '💾';
+    editBtn.onclick = ()=> { // save and revert
+      if(input.value.trim() === '') {
+        if(!confirm('Empty password — continue?')) return;
+      }
+      user.password = input.value;
+      saveState();
+      pwdWrap.replaceChild(mask, input);
+      editBtn.textContent = '✏️';
+      editBtn.onclick = null;
+    };
+  });
+  pwdWrap.appendChild(mask);
+  pwdWrap.appendChild(editBtn);
+  td.appendChild(pwdWrap);
+  return td;
+}
+
+function onInputKeydown(e){
+  if(e.key === 'Enter') e.target.blur();
+}
+
+/* Add new user with minimal defaults */
+function addUser(){
+  const newUser = {
+    id: uid(),
+    userId: prompt('User ID (e.g. 202330XXXX):', '2023'+Math.floor(1000+Math.random()*9000)) || '',
+    name: prompt('Full name:', 'New User') || 'New User',
+    role: 'Student',
+    email: '',
+    username: '',
+    password: '',
+    section: '',
+    status: 'Active'
+  };
+  state.users.push(newUser);
+  saveState();
+  render();
+}
+
+/* Export CSV */
+function exportCSV(){
+  const rows = [
+    ['userId','name','role','email','username','password','section','status']
+  ];
+  state.users.forEach(u=>{
+    rows.push([u.userId,u.name,u.role,u.email,u.username,u.password,u.section,u.status]);
+  });
+  const csv = rows.map(r => r.map(cell => `"${String(cell||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'users_export.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* UI Render wrapper */
+function render(){
+  renderHeader();
+  renderBody();
+}
+
+/* Search handling */
+searchInput.addEventListener('input', (e)=>{
+  state.filter = e.target.value;
+  render();
+});
+
+/* Button actions */
+addUserBtn.addEventListener('click', addUser);
+saveBtn.addEventListener('click', ()=> { saveState(); });
+loadBtn.addEventListener('click', ()=> {
+  if(confirm('Load saved users? This will overwrite unsaved changes.')) loadState();
+});
+resetBtn.addEventListener('click', resetState);
+exportBtn.addEventListener('click', exportCSV);
+
+/* On startup, load saved or default */
+if(localStorage.getItem(STORAGE_KEY)) loadState();
+else { defaultUsers(); render(); saveState(); }
+
+/* Auto-save periodically */
+setInterval(()=> saveState(), 6000);
+
+
+// --- Enhancements added: CSV Import, Edit Modal, Pagination, Validation ---
+
+// CSV Import: allows bulk creating users from a CSV file with header row
+function importCSVFile(file){
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const text = e.target.result;
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    if(lines.length < 2){ alert('CSV needs at least header + one row'); return; }
+    const headers = lines[0].split(',').map(h=>h.trim().replace(/(^"|"$)/g,''));
+    const expected = ['userId','name','role','email','username','password','section','status'];
+    // map flexibly
+    for(let i=1;i<lines.length;i++){
+      const row = lines[i].split(',').map(c=>c.trim().replace(/(^"|"$)/g,''));
+      const obj = {id:uid(), userId:'', name:'', role:'Student', email:'', username:'', password:'', section:'', status:'Active'};
+      for(let j=0;j<headers.length;j++){
+        const key = headers[j].toLowerCase();
+        if(key in obj) obj[key] = row[j] || obj[key];
+      }
+      state.users.push(obj);
+    }
+    saveState(); render();
+    alert('Import complete: ' + (lines.length-1) + ' users added.');
+  };
+  reader.readAsText(file);
+}
+
+// Add file input to controls
+(function addCSVImportUI(){
+  const btn = document.createElement('button');
+  btn.textContent = '⬆ Import CSV';
+  btn.title = 'Import users from CSV (headers: userId,name,role,email,username,password,section,status)';
+  btn.addEventListener('click', ()=> {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = '.csv,text/csv';
+    input.onchange = ()=>{
+      if(input.files && input.files[0]) importCSVFile(input.files[0]);
+    };
+    input.click();
+  });
+  document.querySelector('.controls > div').appendChild(btn);
+})();
+
+// Pagination
+state.page = 1;
+state.pageSize = 10;
+
+function paginate(list){
+  const total = Math.max(1, Math.ceil(list.length / state.pageSize));
+  if(state.page > total) state.page = total;
+  const start = (state.page-1)*state.pageSize;
+  const sliced = list.slice(start, start + state.pageSize);
+  return {sliced, total};
+}
+
+function renderBody(){
+  bodyRows.innerHTML = '';
+  const q = (state.filter || '').trim().toLowerCase();
+  let list = state.users.filter(u=>{
+    if(!q) return true;
+    return (u.userId||'').toLowerCase().includes(q) ||
+           (u.name||'').toLowerCase().includes(q) ||
+           (u.email||'').toLowerCase().includes(q) ||
+           (u.username||'').toLowerCase().includes(q) ||
+           (u.section||'').toLowerCase().includes(q);
+  });
+  if(state.sortKey){
+    list.sort((a,b)=>{
+      const res = compareValues(a,b,state.sortKey);
+      return state.sortDir === 'asc' ? res : -res;
+    });
+  }
+  const p = paginate(list);
+  list = p.sliced;
+  list.forEach((u, idx) => {
+    const tr = document.createElement('tr');
+    tr.appendChild(cell_input(u, 'userId', u.userId, 'text', true));
+    tr.appendChild(cell_input(u, 'name', u.name, 'text', true));
+    tr.appendChild(cell_select(u, 'role', ['Admin','Faculty','Student'], u.role, true, ()=>{ if(u.role !== 'Student') u.section=''; saveState(); render(); }));
+    tr.appendChild(cell_input(u, 'email', u.email, 'email', true));
+    tr.appendChild(cell_input(u, 'username', u.username, 'text', true));
+    tr.appendChild(cell_password(u));
+    const secTd = document.createElement('td');
+    if(u.role === 'Student'){
+      const inp = document.createElement('input');
+      inp.className = 'inline'; inp.value = u.section || ''; inp.placeholder='e.g. BSIT-2A';
+      inp.addEventListener('input', (e)=>{ u.section = e.target.value; saveState(); });
+      inp.addEventListener('keydown', onInputKeydown);
+      secTd.appendChild(inp);
+    } else {
+      secTd.innerHTML = '<span class="small-muted">—</span>';
+    }
+    tr.appendChild(secTd);
+    tr.appendChild(cell_select(u, 'status', ['Active','Inactive'], u.status || 'Active', true, ()=> saveState() ));
+    const actionTd = document.createElement('td'); actionTd.className='center';
+    const delBtn = document.createElement('button'); delBtn.textContent='🗑'; delBtn.title='Delete user';
+    delBtn.addEventListener('click', ()=>{ if(!confirm('Delete user: '+(u.name||u.userId||'unknown')+'?')) return; state.users = state.users.filter(x=>x.id!==u.id); saveState(); render(); });
+    const editBtn = document.createElement('button'); editBtn.textContent='✏️'; editBtn.title='Open edit modal';
+    editBtn.style.marginLeft='6px'; editBtn.addEventListener('click', ()=> openEditModal(u));
+    actionTd.appendChild(delBtn); actionTd.appendChild(editBtn);
+    tr.appendChild(actionTd);
+    bodyRows.appendChild(tr);
+  });
+  renderPaginationControls(p.total);
+}
+
+// Pagination controls render
+function renderPaginationControls(totalPages){
+  // remove existing if any
+  let pager = document.getElementById('pagerControls');
+  if(!pager){
+    pager = document.createElement('div'); pager.id='pagerControls';
+    pager.style.display='flex'; pager.style.gap='8px'; pager.style.alignItems='center'; pager.style.padding='8px';
+    pager.style.justifyContent='flex-end';
+    document.querySelector('.board').appendChild(pager);
+  }
+  pager.innerHTML = '';
+  const info = document.createElement('div'); info.textContent = 'Page ' + state.page + ' / ' + totalPages; info.className='small-muted';
+  const prev = document.createElement('button'); prev.textContent='◀'; prev.disabled = state.page <= 1; prev.addEventListener('click', ()=> { state.page--; render(); });
+  const next = document.createElement('button'); next.textContent='▶'; next.disabled = state.page >= totalPages; next.addEventListener('click', ()=> { state.page++; render(); });
+  const sizeSel = document.createElement('select'); [5,10,20,50].forEach(n=>{ const opt=document.createElement('option'); opt.value=n; opt.textContent=n+' /page'; if(n===state.pageSize) opt.selected=true; sizeSel.appendChild(opt); });
+  sizeSel.addEventListener('change', (e)=>{ state.pageSize = parseInt(e.target.value); state.page=1; render(); });
+  pager.appendChild(prev); pager.appendChild(info); pager.appendChild(next); pager.appendChild(sizeSel);
+}
+
+// Edit modal
+function openEditModal(user){
+  // create modal if not exists
+  let modal = document.getElementById('editModal');
+  if(!modal){
+    modal = document.createElement('div'); modal.id='editModal';
+    modal.style.position='fixed'; modal.style.left=0; modal.style.top=0; modal.style.width='100%'; modal.style.height='100%';
+    modal.style.background='rgba(0,0,0,0.4)'; modal.style.display='flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
+    modal.innerHTML = `
+      <div style="background:white; padding:16px; border-radius:8px; width:720px; max-width:95%; box-shadow:0 6px 30px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0;">Edit User</h3>
+        <form id="editForm">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <label>User ID<input name="userId" class="inline" required></label>
+            <label>Name<input name="name" class="inline" required></label>
+            <label>Role<select name="role" class="inline"><option>Admin</option><option>Faculty</option><option>Student</option></select></label>
+            <label>Email<input name="email" class="inline" type="email" required></label>
+            <label>Username<input name="username" class="inline" required></label>
+            <label>Password<input name="password" class="inline" type="text"></label>
+            <label>Section<input name="section" class="inline" placeholder="e.g. BSIT-2A"></label>
+            <label>Status<select name="status" class="inline"><option>Active</option><option>Inactive</option></select></label>
+          </div>
+          <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+            <button type="button" id="closeEditBtn">Cancel</button>
+            <button type="submit" class="primary">Save changes</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('closeEditBtn').addEventListener('click', ()=> modal.style.display='none');
+    document.getElementById('editForm').addEventListener('submit', (ev)=>{
+      ev.preventDefault();
+      const form = ev.target;
+      const fd = new FormData(form);
+      // basic validation
+      const email = fd.get('email') || '';
+      if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ alert('Invalid email'); return; }
+      // apply changes to current editing user stored on modal
+      const editingId = modal.dataset.editingId;
+      const usr = state.users.find(x=>x.id===editingId);
+      if(!usr) { alert('User not found'); modal.style.display='none'; return; }
+      usr.userId = fd.get('userId') || usr.userId;
+      usr.name = fd.get('name') || usr.name;
+      usr.role = fd.get('role') || usr.role;
+      usr.email = fd.get('email') || usr.email;
+      usr.username = fd.get('username') || usr.username;
+      usr.password = fd.get('password') || usr.password;
+      usr.section = fd.get('section') || (usr.role==='Student'?usr.section:'');
+      usr.status = fd.get('status') || usr.status;
+      saveState(); render();
+      modal.style.display='none';
+    });
+  }
+  // populate form with user values
+  const form = modal.querySelector('form');
+  form.userId.value = user.userId || '';
+  form.name.value = user.name || '';
+  form.role.value = user.role || 'Student';
+  form.email.value = user.email || '';
+  form.username.value = user.username || '';
+  form.password.value = user.password || '';
+  form.section.value = user.section || '';
+  form.status.value = user.status || 'Active';
+  modal.dataset.editingId = user.id;
+  modal.style.display = 'flex';
+}
+
+// Replace edit button functionality to use modal
+// (renderBody already uses openEditModal)
+
+// Keyboard: Ctrl+F focuses search, Ctrl+N adds user
+document.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='f'){ e.preventDefault(); searchInput.focus(); }
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='n'){ e.preventDefault(); addUser(); }
+});
+
+// End enhancements
+
+</script>
+</body>
+</html>
